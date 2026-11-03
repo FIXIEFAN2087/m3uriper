@@ -26,11 +26,11 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white tracking-wide">IPTV Archive Extractor</h1>
-          <p class="text-xs text-slate-400">Быстрое вырезание архива с выбором качества</p>
+          <p class="text-xs text-slate-400">Быстрое скачивание (4 потока с пропуском ошибок)</p>
         </div>
       </div>
       <div class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 font-medium flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Выбор качества
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Турбо-режим (4 потока)
       </div>
     </header>
 
@@ -64,7 +64,7 @@
             </select>
           </div>
 
-          <!-- Quality Selection (NEW) -->
+          <!-- Quality Selection -->
           <div id="qualitySelectorWrapper" class="hidden">
             <label class="block text-xs font-medium text-slate-400 mb-1">Качество потока</label>
             <select id="qualitySelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
@@ -149,7 +149,7 @@
             <button id="clearLogs" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Очистить</button>
           </div>
           <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
-            <div class="text-slate-500">Система готова.</div>
+            <div class="text-slate-500">Система готова. 4 потока активны.</div>
           </div>
         </div>
       </div>
@@ -180,7 +180,7 @@
     const durationWarning = document.getElementById('durationWarning');
 
     let parsedChannels = [];
-    let currentStreamVariants = []; // Доступные потоки качества
+    let currentStreamVariants = [];
     let hls = null;
 
     const now = new Date();
@@ -284,7 +284,6 @@
       if (parsedChannels.length > 0) channelSelect.onchange();
     }
 
-    // Анализ доступного качества через HLS манифест
     async function inspectStreamQualities(url) {
       playPreview(url);
       qualitySelectorWrapper.classList.add('hidden');
@@ -296,7 +295,6 @@
         const text = await resp.text();
         
         if (text.includes('#EXT-X-STREAM-INF')) {
-          // Это мастер-плейлист с несколькими потоками разного качества
           const lines = text.split('\n');
           let currentVariant = null;
           
@@ -327,9 +325,7 @@
             log(`Обнаружено вариантов качества: ${currentStreamVariants.length}`, 'success');
           }
         }
-      } catch (e) {
-        // Обычный поток без вариаций
-      }
+      } catch (e) {}
     }
 
     function playPreview(url) {
@@ -358,7 +354,6 @@
       const selectedIdx = channelSelect.value;
       let channel = parsedChannels[selectedIdx] || { url: m3uUrlInput.value.trim() };
       
-      // Если выбрано конкретное качество из списка вариантов
       const qualVal = qualitySelect.value;
       if (qualVal !== 'auto' && currentStreamVariants[qualVal]) {
         channel = { ...channel, url: currentStreamVariants[qualVal].url };
@@ -390,23 +385,41 @@
         });
 
         if (segmentUrls.length === 0) throw new Error('TS-сегменты не найдены');
-        log(`Найдено сегментов: ${segmentUrls.length}`, 'info');
+        log(`Найдено сегментов: ${segmentUrls.length}. Запуск (4 потока с пропуском ошибок)...`, 'info');
 
-        const tsBuffers = [];
+        const tsBuffers = new Array(segmentUrls.length);
         let completed = 0;
-        const concurrency = 4;
+        const concurrency = 4; // 4 потока
 
         for (let i = 0; i < segmentUrls.length; i += concurrency) {
           const chunk = segmentUrls.slice(i, i + concurrency);
-          const promises = chunk.map(u => fetch(u).then(r => r.arrayBuffer()));
-          const buffers = await Promise.all(promises);
-          tsBuffers.push(...buffers);
+          
+          const promises = chunk.map(async (u, idx) => {
+            const realIndex = i + idx;
+            try {
+              const r = await fetch(u);
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              tsBuffers[realIndex] = await r.arrayBuffer();
+            } catch (err) {
+              // Если кусок не скачался — логируем предупреждение и пропускаем (оставляем пустым)
+              log(`⚠️ Пропущен поврежденный сегмент #${realIndex + 1}`, 'warn');
+              tsBuffers[realIndex] = new ArrayBuffer(0); 
+            }
+          });
+
+          await Promise.all(promises);
           completed += chunk.length;
-          updateProgress(Math.round((completed / segmentUrls.length) * 100), `Загрузка сегментов (${completed}/${segmentUrls.length})...`);
+
+          const percent = Math.round((Math.min(completed, segmentUrls.length) / segmentUrls.length) * 100);
+          updateProgress(percent, `Скачивание (${Math.min(completed, segmentUrls.length)}/${segmentUrls.length})...`);
         }
 
-        updateProgress(98, 'Сборка файла...');
-        const blob = new Blob(tsBuffers, { type: 'video/mp2t' });
+        updateProgress(99, 'Сборка файла...');
+        
+        // Фильтруем пустые буферы перед созданием файла
+        const validBuffers = tsBuffers.filter(b => b && b.byteLength > 0);
+        const blob = new Blob(validBuffers, { type: 'video/mp2t' });
+        
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `Archive_${(channel.name || 'stream').replace(/[^a-z0-9а-яё]/gi, '_')}_${startSec}.ts`;
@@ -415,9 +428,9 @@
         document.body.removeChild(a);
 
         updateProgress(100, 'Готово! Файл сохранен.');
-        log('Отрывок успешно скачан!', 'success');
+        log('Отрывок успешно скачан (пропущенные ошибки не прервали загрузку)!', 'success');
       } catch (err) {
-        log(`Ошибка: ${err.message}`, 'error');
+        log(`Ошибка при скачивании: ${err.message}`, 'error');
         updateProgress(0, 'Ошибка');
       }
     });
