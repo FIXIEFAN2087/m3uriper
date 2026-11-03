@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPTV Archive Extractor & Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- Header -->
+    <header class="flex items-center justify-between bg-slate-800/80 p-5 rounded-2xl border border-slate-700/60 shadow-xl backdrop-blur-md">
+      <div class="flex items-center space-x-3">
+        <div class="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+          <i data-lucide="download-cloud" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-wide">IPTV Archive Extractor</h1>
+          <p class="text-xs text-slate-400">Быстрое вырезание архива с выбором качества</p>
+        </div>
+      </div>
+      <div class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 font-medium flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Выбор качества
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Left Column -->
+      <div class="lg:col-span-7 space-y-6">
+        
+        <!-- Step 1: Playlist & Channels -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+          <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+            <i data-lucide="list-video" class="w-5 h-5 text-indigo-400"></i>
+            1. Источник и выбор канала
+          </h2>
+          
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Ссылка на M3U Плейлист или M3U8 Поток</label>
+            <div class="flex gap-2">
+              <input type="url" id="m3uUrl" placeholder="http://example.com/playlist.m3u8" 
+                class="flex-1 bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+              <button id="loadBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Загрузить
+              </button>
+            </div>
+          </div>
+
+          <!-- Channel Dropdown -->
+          <div id="channelSelectorWrapper" class="hidden">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Канал</label>
+            <select id="channelSelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+            </select>
+          </div>
+
+          <!-- Quality Selection (NEW) -->
+          <div id="qualitySelectorWrapper" class="hidden">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Качество потока</label>
+            <select id="qualitySelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+              <option value="auto">Авто (Максимальное качество)</option>
+            </select>
+          </div>
+
+          <!-- Catchup Template -->
+          <div class="pt-2 border-t border-slate-700/40">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Шаблон Catchup/Архива</label>
+            <input type="text" id="catchupTemplate" placeholder="?utc=${start}&lutc=${timestamp}" 
+              class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Step 2: Time Ranges -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+          <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+            <i data-lucide="clock" class="w-5 h-5 text-indigo-400"></i>
+            2. Диапазон записи (До 40 минут)
+          </h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Время начала</label>
+              <input type="datetime-local" id="startTime" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Время конца</label>
+              <input type="datetime-local" id="endTime" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 pt-2">
+            <span class="text-xs text-slate-400 font-medium">Быстрый выбор:</span>
+            <button class="quick-dur bg-slate-700/60 hover:bg-slate-700 text-xs px-3 py-1 rounded-lg transition" data-minutes="5">+5 мин</button>
+            <button class="quick-dur bg-slate-700/60 hover:bg-slate-700 text-xs px-3 py-1 rounded-lg transition" data-minutes="15">+15 мин</button>
+            <button class="quick-dur bg-slate-700/60 hover:bg-slate-700 text-xs px-3 py-1 rounded-lg transition" data-minutes="30">+30 мин</button>
+            <button class="quick-dur bg-slate-700/60 hover:bg-slate-700 text-xs px-3 py-1 rounded-lg transition" data-minutes="40">+40 мин</button>
+          </div>
+
+          <div id="durationWarning" class="hidden text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+            ⚠️ Длительность превышает 40 минут! Рекомендуется указывать до 40 минут.
+          </div>
+        </div>
+
+        <!-- Download Button -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+          <button id="downloadBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-3 text-base">
+            <i data-lucide="download" class="w-5 h-5"></i>
+            Скачать отрывок в Загрузки
+          </button>
+
+          <div id="progressWrapper" class="space-y-2 hidden">
+            <div class="flex justify-between text-xs text-slate-300">
+              <span id="statusText">Загрузка...</span>
+              <span id="percentText">0%</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
+              <div id="progressBar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-200 w-0"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 shadow-lg space-y-3">
+          <h2 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <i data-lucide="play-circle" class="w-4 h-4 text-indigo-400"></i>
+            Предпросмотр архива
+          </h2>
+          <div class="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-700/80 flex items-center justify-center">
+            <video id="videoPlayer" controls class="w-full h-full object-contain"></video>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 shadow-lg space-y-2">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Логи обработки</h2>
+            <button id="clearLogs" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Очистить</button>
+          </div>
+          <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
+            <div class="text-slate-500">Система готова.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const m3uUrlInput = document.getElementById('m3uUrl');
+    const loadBtn = document.getElementById('loadBtn');
+    const channelSelectorWrapper = document.getElementById('channelSelectorWrapper');
+    const channelSelect = document.getElementById('channelSelect');
+    const qualitySelectorWrapper = document.getElementById('qualitySelectorWrapper');
+    const qualitySelect = document.getElementById('qualitySelect');
+    const catchupTemplateInput = document.getElementById('catchupTemplate');
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressBar = document.getElementById('progressBar');
+    const statusText = document.getElementById('statusText');
+    const percentText = document.getElementById('percentText');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const logConsole = document.getElementById('logConsole');
+    const clearLogsBtn = document.getElementById('clearLogs');
+    const durationWarning = document.getElementById('durationWarning');
+
+    let parsedChannels = [];
+    let currentStreamVariants = []; // Доступные потоки качества
+    let hls = null;
+
+    const now = new Date();
+    const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
+    const formatDate = (date) => {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+    startTimeInput.value = formatDate(fifteenMinsAgo);
+    endTimeInput.value = formatDate(now);
+
+    function log(msg, type = 'info') {
+      const entry = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      let colorClass = 'text-slate-300';
+      if (type === 'error') colorClass = 'text-red-400';
+      if (type === 'success') colorClass = 'text-emerald-400';
+      if (type === 'warn') colorClass = 'text-amber-400';
+      entry.className = colorClass;
+      entry.innerHTML = `<span class="text-slate-600">[${time}]</span> ${msg}`;
+      logConsole.appendChild(entry);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    clearLogsBtn.addEventListener('click', () => logConsole.innerHTML = '');
+
+    document.querySelectorAll('.quick-dur').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mins = parseInt(btn.dataset.minutes);
+        if (!startTimeInput.value) return;
+        const start = new Date(startTimeInput.value);
+        endTimeInput.value = formatDate(new Date(start.getTime() + mins * 60 * 1000));
+        validateDuration();
+      });
+    });
+
+    function validateDuration() {
+      if (!startTimeInput.value || !endTimeInput.value) return;
+      const diffMins = (new Date(endTimeInput.value).getTime() - new Date(startTimeInput.value).getTime()) / (1000 * 60);
+      if (diffMins > 40) durationWarning.classList.remove('hidden');
+      else durationWarning.classList.add('hidden');
+    }
+    startTimeInput.addEventListener('change', validateDuration);
+    endTimeInput.addEventListener('change', validateDuration);
+
+    loadBtn.addEventListener('click', async () => {
+      const url = m3uUrlInput.value.trim();
+      if (!url) return log('Введите URL', 'warn');
+      log(`Загрузка источника...`);
+
+      if (url.endsWith('.m3u8') || url.includes('.m3u8?')) {
+        parsedChannels = [{ name: 'Основной поток', url: url, catchup: '' }];
+        setupChannelDropdown();
+        inspectStreamQualities(url);
+      } else {
+        try {
+          const resp = await fetch(url);
+          const text = await resp.text();
+          parsedChannels = parseM3U(text);
+          setupChannelDropdown();
+          log(`Найдено каналов: ${parsedChannels.length}`, 'success');
+        } catch (err) {
+          log(`Ошибка загрузки M3U: ${err.message}`, 'error');
+        }
+      }
+    });
+
+    function parseM3U(content) {
+      const lines = content.split('\n');
+      const channels = [];
+      let currentChannel = null;
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('#EXTINF:')) {
+          const nameMatch = line.match(/,(.+)$/);
+          const catchupMatch = line.match(/catchup-template="([^"]+)"/i);
+          currentChannel = { name: nameMatch ? nameMatch[1].trim() : 'Канал', catchup: catchupMatch ? catchupMatch[1] : '' };
+        } else if (line && !line.startsWith('#') && currentChannel) {
+          currentChannel.url = line;
+          channels.push(currentChannel);
+          currentChannel = null;
+        }
+      }
+      return channels;
+    }
+
+    function setupChannelDropdown() {
+      channelSelect.innerHTML = '';
+      parsedChannels.forEach((ch, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = ch.name;
+        channelSelect.appendChild(opt);
+      });
+      channelSelectorWrapper.classList.remove('hidden');
+      channelSelect.onchange = () => {
+        const selected = parsedChannels[channelSelect.value];
+        if (selected.catchup) catchupTemplateInput.value = selected.catchup;
+        inspectStreamQualities(selected.url);
+      };
+      if (parsedChannels.length > 0) channelSelect.onchange();
+    }
+
+    // Анализ доступного качества через HLS манифест
+    async function inspectStreamQualities(url) {
+      playPreview(url);
+      qualitySelectorWrapper.classList.add('hidden');
+      qualitySelect.innerHTML = '<option value="auto">Авто (Максимальное качество)</option>';
+      currentStreamVariants = [];
+
+      try {
+        const resp = await fetch(url);
+        const text = await resp.text();
+        
+        if (text.includes('#EXT-X-STREAM-INF')) {
+          // Это мастер-плейлист с несколькими потоками разного качества
+          const lines = text.split('\n');
+          let currentVariant = null;
+          
+          for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (line.startsWith('#EXT-X-STREAM-INF')) {
+              const resMatch = line.match(/RESOLUTION=(\d+x\d+)/i);
+              const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
+              const resolution = resMatch ? resMatch[1] : 'Неизвестно';
+              const bandwidth = bwMatch ? Math.round(parseInt(bwMatch[1]) / 1000) + ' кбит/с' : '';
+              currentVariant = { resolution, bandwidth };
+            } else if (line && !line.startsWith('#') && currentVariant) {
+              const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+              currentVariant.url = line.startsWith('http') ? line : baseUrl + line;
+              currentStreamVariants.push(currentVariant);
+              currentVariant = null;
+            }
+          }
+
+          if (currentStreamVariants.length > 0) {
+            currentStreamVariants.forEach((v, idx) => {
+              const opt = document.createElement('option');
+              opt.value = idx;
+              opt.textContent = `Разрешение: ${v.resolution} (${v.bandwidth})`;
+              qualitySelect.appendChild(opt);
+            });
+            qualitySelectorWrapper.classList.remove('hidden');
+            log(`Обнаружено вариантов качества: ${currentStreamVariants.length}`, 'success');
+          }
+        }
+      } catch (e) {
+        // Обычный поток без вариаций
+      }
+    }
+
+    function playPreview(url) {
+      if (Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(videoPlayer);
+      } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+        videoPlayer.src = url;
+      }
+    }
+
+    function buildCatchupUrl(baseUrl, template, startSec, endSec) {
+      if (!template) {
+        const sep = baseUrl.includes('?') ? '&' : '?';
+        return `${baseUrl}${sep}utc=${startSec}&lutc=${endSec}`;
+      }
+      let result = template.replace(/\${start}/g, startSec).replace(/\${end}/g, endSec).replace(/\${timestamp}/g, startSec);
+      if (result.startsWith('http')) return result;
+      const sep = baseUrl.includes('?') ? '&' : '?';
+      return baseUrl + (result.startsWith('?') ? result : sep + result);
+    }
+
+    downloadBtn.addEventListener('click', async () => {
+      const selectedIdx = channelSelect.value;
+      let channel = parsedChannels[selectedIdx] || { url: m3uUrlInput.value.trim() };
+      
+      // Если выбрано конкретное качество из списка вариантов
+      const qualVal = qualitySelect.value;
+      if (qualVal !== 'auto' && currentStreamVariants[qualVal]) {
+        channel = { ...channel, url: currentStreamVariants[qualVal].url };
+      }
+
+      const startMs = new Date(startTimeInput.value).getTime();
+      const endMs = new Date(endTimeInput.value).getTime();
+      if (isNaN(startMs) || isNaN(endMs) || startMs >= endMs) return log('Укажите корректный интервал времени', 'warn');
+
+      const startSec = Math.floor(startMs / 1000);
+      const endSec = Math.floor(endMs / 1000);
+      const catchupUrl = buildCatchupUrl(channel.url, catchupTemplateInput.value.trim(), startSec, endSec);
+
+      progressWrapper.classList.remove('hidden');
+      updateProgress(0, 'Получение манифеста архива...');
+
+      try {
+        const resp = await fetch(catchupUrl);
+        if (!resp.ok) throw new Error(`Ошибка сервера: ${resp.status}`);
+        const manifestText = await resp.text();
+
+        const baseUrl = catchupUrl.substring(0, catchupUrl.lastIndexOf('/') + 1);
+        const segmentUrls = [];
+        manifestText.split('\n').forEach(line => {
+          line = line.trim();
+          if (line && !line.startsWith('#')) {
+            segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
+          }
+        });
+
+        if (segmentUrls.length === 0) throw new Error('TS-сегменты не найдены');
+        log(`Найдено сегментов: ${segmentUrls.length}`, 'info');
+
+        const tsBuffers = [];
+        let completed = 0;
+        const concurrency = 4;
+
+        for (let i = 0; i < segmentUrls.length; i += concurrency) {
+          const chunk = segmentUrls.slice(i, i + concurrency);
+          const promises = chunk.map(u => fetch(u).then(r => r.arrayBuffer()));
+          const buffers = await Promise.all(promises);
+          tsBuffers.push(...buffers);
+          completed += chunk.length;
+          updateProgress(Math.round((completed / segmentUrls.length) * 100), `Загрузка сегментов (${completed}/${segmentUrls.length})...`);
+        }
+
+        updateProgress(98, 'Сборка файла...');
+        const blob = new Blob(tsBuffers, { type: 'video/mp2t' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Archive_${(channel.name || 'stream').replace(/[^a-z0-9а-яё]/gi, '_')}_${startSec}.ts`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        updateProgress(100, 'Готово! Файл сохранен.');
+    
