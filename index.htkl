@@ -415,4 +415,18 @@
         document.body.removeChild(a);
 
         updateProgress(100, 'Готово! Файл сохранен.');
-    
+        log('Отрывок успешно скачан!', 'success');
+      } catch (err) {
+        log(`Ошибка: ${err.message}`, 'error');
+        updateProgress(0, 'Ошибка');
+      }
+    });
+
+    function updateProgress(percent, text) {
+      progressBar.style.width = `${percent}%`;
+      percentText.textContent = `${percent}%`;
+      statusText.textContent = text;
+    }
+  </script>
+</body>
+</html>
