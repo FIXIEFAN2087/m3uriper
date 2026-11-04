@@ -12,6 +12,35 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #1e293b; }
     ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    
+    /* Классическая телевизионная таблица профилактики (SMPTE / УЭИ) */
+    .test-card {
+      background: linear-gradient(to right, 
+        #c0c0c0 14.28%, #c0c0c0 14.28%, 
+        #c0c000 28.56%, #c0c000 28.56%, 
+        #00c0c0 42.84%, #00c0c0 42.84%, 
+        #00c000 57.12%, #00c000 57.12%, 
+        #c000c0 71.40%, #c000c0 71.40%, 
+        #c00000 85.68%, #c00000 85.68%, 
+        #0000c0 100%
+      );
+      position: relative;
+    }
+    .test-card::after {
+      content: "ПРОФИЛАКТИКА / НЕТ СИГНАЛА";
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 6px 16px;
+      font-size: 11px;
+      font-family: monospace;
+      letter-spacing: 2px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -45,6 +74,16 @@
             <i data-lucide="list-video" class="w-5 h-5 text-indigo-400"></i>
             1. Источник и выбор канала
           </h2>
+
+          <!-- Source Type Selector -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Тип источника</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" class="source-type-btn active bg-indigo-600 text-white font-medium py-2 px-3 rounded-xl text-xs transition text-center" data-type="auto">Автоопределение</button>
+              <button type="button" class="source-type-btn bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-700/50 font-medium py-2 px-3 rounded-xl text-xs transition text-center" data-type="playlist">M3U Плейлист</button>
+              <button type="button" class="source-type-btn bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-700/50 font-medium py-2 px-3 rounded-xl text-xs transition text-center" data-type="stream">M3U8 Поток</button>
+            </div>
+          </div>
           
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1">Ссылка на M3U Плейлист или M3U8 Поток</label>
@@ -136,8 +175,9 @@
             <i data-lucide="play-circle" class="w-4 h-4 text-indigo-400"></i>
             Предпросмотр архива
           </h2>
-          <div class="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-700/80 flex items-center justify-center">
-            <video id="videoPlayer" controls class="w-full h-full object-contain"></video>
+          <!-- Плеер с подложкой из цветных полос профилактики -->
+          <div class="relative aspect-video test-card rounded-xl overflow-hidden border border-slate-700/80 flex items-center justify-center">
+            <video id="videoPlayer" controls class="relative z-10 w-full h-full object-contain"></video>
           </div>
         </div>
 
@@ -147,7 +187,7 @@
             <button id="clearLogs" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Очистить</button>
           </div>
           <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
-            <div class="text-slate-500">Система готова.</div>
+            <div class="text-slate-500">Система готова. Режим профилактики активирован.</div>
           </div>
         </div>
       </div>
@@ -174,10 +214,10 @@
             Как скачать отрывок?
           </h3>
           <ol class="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed">
-            <li>Вставьте ссылку на ваш M3U плейлист в поле сверху и нажмите <strong class="text-white">Загрузить</strong>.</li>
-            <li>Выберите нужный телеканал из выпадающего списка (шаблон архива подставится автоматически).</li>
-            <li>Укажите время начала и окончания нужной передачи (или используйте быстрые кнопки вроде <code class="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">+15 мин</code>).</li>
-            <li>Нажмите <strong class="text-white">Скачать MP4</strong>. Программа в 4 потока соберет видео, пропустит возможные сбои трансляции и сохранит готовый файл на устройство.</li>
+            <li>Выберите тип источника (или оставьте «Авто») и вставьте ссылку в поле сверху, затем нажмите <strong class="text-white">Загрузить</strong>.</li>
+            <li>Если это плейлист — выберите нужный телеканал из списка (шаблон архива подставится сам). Если поток — он сразу готов к работе.</li>
+            <li>Укажите время начала и окончания передачи (или используйте быстрые кнопки вроде <code class="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">+15 мин</code>).</li>
+            <li>Нажмите <strong class="text-white">Скачать MP4</strong>. Программа в 4 потока соберет видео, пропустит сбои трансляции и сохранит файл.</li>
           </ol>
         </div>
 
@@ -227,6 +267,20 @@
     let parsedChannels = [];
     let hls = null;
     let abortController = null;
+    let selectedSourceType = 'auto'; // auto, playlist, stream
+
+    // Обработка кликов по переключателю типа источника
+    document.querySelectorAll('.source-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.source-type-btn').forEach(b => {
+          b.classList.remove('active', 'bg-indigo-600', 'text-white');
+          b.classList.add('bg-slate-900/80', 'border', 'border-slate-700', 'text-slate-300');
+        });
+        btn.classList.add('active', 'bg-indigo-600', 'text-white');
+        btn.classList.remove('bg-slate-900/80', 'border', 'border-slate-700', 'text-slate-300');
+        selectedSourceType = btn.dataset.type;
+      });
+    });
 
     const now = new Date();
     const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
@@ -276,19 +330,37 @@
       if (!url) return log('Введите URL', 'warn');
       log(`Загрузка источника...`);
 
-      if (url.endsWith('.m3u8') || url.includes('.m3u8?')) {
-        parsedChannels = [{ name: 'Основной поток', url: url, catchup: '' }];
-        setupChannelDropdown();
+      // Определяем принудительно или по авто-логике
+      const isStreamForced = selectedSourceType === 'stream' || (selectedSourceType === 'auto' && (url.endsWith('.m3u8') || url.includes('.m3u8?') || url.includes('live') || url.includes('stream')));
+      const isPlaylistForced = selectedSourceType === 'playlist';
+
+      if (isStreamForced && !isPlaylistForced) {
+        parsedChannels = [{ name: 'Одиночный поток', url: url, catchup: '' }];
+        channelSelectorWrapper.classList.add('hidden');
         playPreview(url);
+        log('Поток распознан как одиночный M3U8', 'success');
       } else {
         try {
           const resp = await fetch(url);
           const text = await resp.text();
-          parsedChannels = parseM3U(text);
-          setupChannelDropdown();
-          log(`Найдено каналов: ${parsedChannels.length}`, 'success');
+          
+          if (text.includes('#EXTINF')) {
+            parsedChannels = parseM3U(text);
+            setupChannelDropdown();
+            log(`Найдено каналов в плейлисте: ${parsedChannels.length}`, 'success');
+          } else {
+            // Если файл скачался, но это оказался один поток
+            parsedChannels = [{ name: 'Основной поток', url: url, catchup: '' }];
+            channelSelectorWrapper.classList.add('hidden');
+            playPreview(url);
+            log('Источник распознан как поток', 'success');
+          }
         } catch (err) {
-          log(`Ошибка загрузки M3U: ${err.message}`, 'error');
+          // Если ошибка CORS или прямая ссылка на поток без CORS-заголовков
+          log(`Не удалось прочитать как плейлист (${err.message}). Пробуем как поток...`, 'warn');
+          parsedChannels = [{ name: 'Поток (прямой)', url: url, catchup: '' }];
+          channelSelectorWrapper.classList.add('hidden');
+          playPreview(url);
         }
       }
     });
@@ -468,4 +540,3 @@
   </script>
 </body>
 </html>
-  
