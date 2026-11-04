@@ -26,11 +26,11 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white tracking-wide">IPTV Archive Extractor</h1>
-          <p class="text-xs text-slate-400">Скачивание архива в MP4 (выбор качества и кнопка Стоп)</p>
+          <p class="text-xs text-slate-400">Скачивание архива в MP4 (4 потока, кнопка Стоп)</p>
         </div>
       </div>
       <div class="text-xs bg-purple-500/10 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/20 font-medium flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> MP4 + Выбор качества
+        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Формат MP4
       </div>
     </header>
 
@@ -61,14 +61,6 @@
           <div id="channelSelectorWrapper" class="hidden">
             <label class="block text-xs font-medium text-slate-400 mb-1">Канал</label>
             <select id="channelSelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-            </select>
-          </div>
-
-          <!-- Quality Selection -->
-          <div id="qualitySelectorWrapper" class="hidden">
-            <label class="block text-xs font-medium text-slate-400 mb-1">Качество потока / видео для скачивания</label>
-            <select id="qualitySelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-              <option value="auto">Авто (Максимальное качество)</option>
             </select>
           </div>
 
@@ -155,12 +147,60 @@
             <button id="clearLogs" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Очистить</button>
           </div>
           <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
-            <div class="text-slate-500">Система готова. Выбор качества и кнопка Стоп активны.</div>
+            <div class="text-slate-500">Система готова.</div>
           </div>
         </div>
       </div>
 
     </div>
+
+    <!-- Instructions & FAQ Section -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-lg space-y-6">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+          <i data-lucide="help-circle" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">Инструкция и FAQ («Для чайников»)</h2>
+          <p class="text-xs text-slate-400">Как пользоваться приложением и ответы на популярные вопросы</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+        <!-- How to use -->
+        <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/40">
+          <h3 class="font-semibold text-white flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4 text-indigo-400"></i>
+            Как скачать отрывок?
+          </h3>
+          <ol class="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed">
+            <li>Вставьте ссылку на ваш M3U плейлист в поле сверху и нажмите <strong class="text-white">Загрузить</strong>.</li>
+            <li>Выберите нужный телеканал из выпадающего списка (шаблон архива подставится автоматически).</li>
+            <li>Укажите время начала и окончания нужной передачи (или используйте быстрые кнопки вроде <code class="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">+15 мин</code>).</li>
+            <li>Нажмите <strong class="text-white">Скачать MP4</strong>. Программа в 4 потока соберет видео, пропустит возможные сбои трансляции и сохранит готовый файл на устройство.</li>
+          </ol>
+        </div>
+
+        <!-- FAQ -->
+        <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/40">
+          <h3 class="font-semibold text-white flex items-center gap-2">
+            <i data-lucide="help-circle" class="w-4 h-4 text-purple-400"></i>
+            Частые вопросы (FAQ)
+          </h3>
+          <div class="space-y-3 text-xs">
+            <div>
+              <p class="font-medium text-white">❓ Можно ли записывать больше 40 минут?</p>
+              <p class="text-slate-400 mt-0.5">Да, технически можно, но <strong>не советуется</strong>. При большой длительности файл получается тяжелым, и браузер на планшете или телефоне может не справиться с оперативной памятью, либо загрузка прервется из-за скачков интернета. Лучше скачивать отрезки по 15–30 минут.</p>
+            </div>
+            <div>
+              <p class="font-medium text-white">❓ Что делать, если прервалась загрузка?</p>
+              <p class="text-slate-400 mt-0.5">Вы можете в любой момент нажать красную кнопку <strong class="text-red-400">Стоп</strong>, уменьшить временной интервал и попробовать снова.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <script>
@@ -170,8 +210,6 @@
     const loadBtn = document.getElementById('loadBtn');
     const channelSelectorWrapper = document.getElementById('channelSelectorWrapper');
     const channelSelect = document.getElementById('channelSelect');
-    const qualitySelectorWrapper = document.getElementById('qualitySelectorWrapper');
-    const qualitySelect = document.getElementById('qualitySelect');
     const catchupTemplateInput = document.getElementById('catchupTemplate');
     const startTimeInput = document.getElementById('startTime');
     const endTimeInput = document.getElementById('endTime');
@@ -187,7 +225,6 @@
     const durationWarning = document.getElementById('durationWarning');
 
     let parsedChannels = [];
-    let currentStreamVariants = [];
     let hls = null;
     let abortController = null;
 
@@ -242,7 +279,7 @@
       if (url.endsWith('.m3u8') || url.includes('.m3u8?')) {
         parsedChannels = [{ name: 'Основной поток', url: url, catchup: '' }];
         setupChannelDropdown();
-        inspectStreamQualities(url);
+        playPreview(url);
       } else {
         try {
           const resp = await fetch(url);
@@ -287,53 +324,9 @@
       channelSelect.onchange = () => {
         const selected = parsedChannels[channelSelect.value];
         if (selected.catchup) catchupTemplateInput.value = selected.catchup;
-        inspectStreamQualities(selected.url);
+        playPreview(selected.url);
       };
       if (parsedChannels.length > 0) channelSelect.onchange();
-    }
-
-    async function inspectStreamQualities(url) {
-      playPreview(url);
-      qualitySelectorWrapper.classList.add('hidden');
-      qualitySelect.innerHTML = '<option value="auto">Авто (Максимальное качество)</option>';
-      currentStreamVariants = [];
-
-      try {
-        const resp = await fetch(url);
-        const text = await resp.text();
-        
-        if (text.includes('#EXT-X-STREAM-INF')) {
-          const lines = text.split('\n');
-          let currentVariant = null;
-          
-          for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (line.startsWith('#EXT-X-STREAM-INF')) {
-              const resMatch = line.match(/RESOLUTION=(\d+x\d+)/i);
-              const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
-              const resolution = resMatch ? resMatch[1] : 'Неизвестно';
-              const bandwidth = bwMatch ? Math.round(parseInt(bwMatch[1]) / 1000) + ' кбит/с' : '';
-              currentVariant = { resolution, bandwidth };
-            } else if (line && !line.startsWith('#') && currentVariant) {
-              const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
-              currentVariant.url = line.startsWith('http') ? line : baseUrl + line;
-              currentStreamVariants.push(currentVariant);
-              currentVariant = null;
-            }
-          }
-
-          if (currentStreamVariants.length > 0) {
-            currentStreamVariants.forEach((v, idx) => {
-              const opt = document.createElement('option');
-              opt.value = idx;
-              opt.textContent = `Разрешение: ${v.resolution} (${v.bandwidth})`;
-              qualitySelect.appendChild(opt);
-            });
-            qualitySelectorWrapper.classList.remove('hidden');
-            log(`Обнаружено вариантов качества: ${currentStreamVariants.length}`, 'success');
-          }
-        }
-      } catch (e) {}
     }
 
     function playPreview(url) {
@@ -371,13 +364,8 @@
 
     downloadBtn.addEventListener('click', async () => {
       const selectedIdx = channelSelect.value;
-      let channel = parsedChannels[selectedIdx] || { url: m3uUrlInput.value.trim() };
+      const channel = parsedChannels[selectedIdx] || { url: m3uUrlInput.value.trim() };
       
-      const qualVal = qualitySelect.value;
-      if (qualVal !== 'auto' && currentStreamVariants[qualVal]) {
-        channel = { ...channel, url: currentStreamVariants[qualVal].url };
-      }
-
       const startMs = new Date(startTimeInput.value).getTime();
       const endMs = new Date(endTimeInput.value).getTime();
       if (isNaN(startMs) || isNaN(endMs) || startMs >= endMs) return log('Укажите корректный интервал времени', 'warn');
@@ -400,70 +388,14 @@
         if (!resp.ok) throw new Error(`Ошибка сервера: ${resp.status}`);
         const manifestText = await resp.text();
 
-        let baseUrl = catchupUrl.substring(0, catchupUrl.lastIndexOf('/') + 1);
-        let targetManifestUrl = catchupUrl;
-        let segmentUrls = [];
-
-        // Проверяем, является ли скачанный манифест мастером с мульти-качеством
-        if (manifestText.includes('#EXT-X-STREAM-INF')) {
-          log('Анализ вариантов качества выбранного архива...', 'info');
-          const lines = manifestText.split('\n');
-          let variants = [];
-          let curVar = null;
-
-          for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (line.startsWith('#EXT-X-STREAM-INF')) {
-              const resMatch = line.match(/RESOLUTION=(\d+x\d+)/i);
-              const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
-              curVar = {
-                resolution: resMatch ? resMatch[1] : 'Неизвестно',
-                bandwidth: bwMatch ? parseInt(bwMatch[1]) : 0
-              };
-            } else if (line && !line.startsWith('#') && curVar) {
-              curVar.url = line.startsWith('http') ? line : baseUrl + line;
-              variants.push(curVar);
-              curVar = null;
-            }
+        const baseUrl = catchupUrl.substring(0, catchupUrl.lastIndexOf('/') + 1);
+        const segmentUrls = [];
+        manifestText.split('\n').forEach(line => {
+          line = line.trim();
+          if (line && !line.startsWith('#')) {
+            segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
           }
-
-          if (variants.length > 0) {
-            let chosenVariant = variants[0];
-            if (qualVal !== 'auto' && currentStreamVariants[qualVal]) {
-              // Ищем вариант с таким же разрешением среди вариантов архива
-              const targetRes = currentStreamVariants[qualVal].resolution;
-              const matched = variants.find(v => v.resolution === targetRes);
-              if (matched) chosenVariant = matched;
-            } else {
-              // По умолчанию берем максимальное качество из доступных в архиве
-              variants.sort((a, b) => b.bandwidth - a.bandwidth);
-              chosenVariant = variants[0];
-            }
-
-            log(`Загрузка плейлиста для разрешения ${chosenVariant.resolution}...`, 'info');
-            const subResp = await fetch(chosenVariant.url, { signal });
-            if (!subResp.ok) throw new Error(`Ошибка под-плейлиста: ${subResp.status}`);
-            const subText = await subResp.text();
-            
-            baseUrl = chosenVariant.url.substring(0, chosenVariant.url.lastIndexOf('/') + 1);
-            subText.split('\n').forEach(line => {
-              line = line.trim();
-              if (line && !line.startsWith('#')) {
-                segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
-              }
-            });
-          }
-        }
-
-        // Если это обычный плейлист сегментов
-        if (segmentUrls.length === 0) {
-          manifestText.split('\n').forEach(line => {
-            line = line.trim();
-            if (line && !line.startsWith('#')) {
-              segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
-            }
-          });
-        }
+        });
 
         if (segmentUrls.length === 0) throw new Error('TS-сегменты не найдены');
         log(`Найдено сегментов: ${segmentUrls.length}. Запуск скачивания в MP4 (4 потока)...`, 'info');
@@ -536,3 +468,4 @@
   </script>
 </body>
 </html>
+  
