@@ -26,11 +26,11 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white tracking-wide">IPTV Archive Extractor</h1>
-          <p class="text-xs text-slate-400">Быстрое скачивание (4 потока с пропуском ошибок)</p>
+          <p class="text-xs text-slate-400">Скачивание архива в MP4 (выбор качества и кнопка Стоп)</p>
         </div>
       </div>
-      <div class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 font-medium flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Турбо-режим (4 потока)
+      <div class="text-xs bg-purple-500/10 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/20 font-medium flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> MP4 + Выбор качества
       </div>
     </header>
 
@@ -66,7 +66,7 @@
 
           <!-- Quality Selection -->
           <div id="qualitySelectorWrapper" class="hidden">
-            <label class="block text-xs font-medium text-slate-400 mb-1">Качество потока</label>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Качество потока / видео для скачивания</label>
             <select id="qualitySelect" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
               <option value="auto">Авто (Максимальное качество)</option>
             </select>
@@ -111,12 +111,18 @@
           </div>
         </div>
 
-        <!-- Download Button -->
+        <!-- Download & Stop Buttons -->
         <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
-          <button id="downloadBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-3 text-base">
-            <i data-lucide="download" class="w-5 h-5"></i>
-            Скачать отрывок в Загрузки
-          </button>
+          <div class="flex gap-2">
+            <button id="downloadBtn" class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-3 text-base">
+              <i data-lucide="download" class="w-5 h-5"></i>
+              Скачать MP4
+            </button>
+            <button id="stopBtn" class="hidden bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold py-3.5 px-5 rounded-xl border border-red-500/30 transition flex items-center justify-center gap-2 text-sm">
+              <i data-lucide="square" class="w-4 h-4"></i>
+              Стоп
+            </button>
+          </div>
 
           <div id="progressWrapper" class="space-y-2 hidden">
             <div class="flex justify-between text-xs text-slate-300">
@@ -149,7 +155,7 @@
             <button id="clearLogs" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Очистить</button>
           </div>
           <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
-            <div class="text-slate-500">Система готова. 4 потока активны.</div>
+            <div class="text-slate-500">Система готова. Выбор качества и кнопка Стоп активны.</div>
           </div>
         </div>
       </div>
@@ -170,6 +176,7 @@
     const startTimeInput = document.getElementById('startTime');
     const endTimeInput = document.getElementById('endTime');
     const downloadBtn = document.getElementById('downloadBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const progressWrapper = document.getElementById('progressWrapper');
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
@@ -182,6 +189,7 @@
     let parsedChannels = [];
     let currentStreamVariants = [];
     let hls = null;
+    let abortController = null;
 
     const now = new Date();
     const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
@@ -350,6 +358,17 @@
       return baseUrl + (result.startsWith('?') ? result : sep + result);
     }
 
+    stopBtn.addEventListener('click', () => {
+      if (abortController) {
+        abortController.abort();
+        log('⏹️ Загрузка прервана пользователем.', 'warn');
+        updateProgress(0, 'Отменено');
+        stopBtn.classList.add('hidden');
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    });
+
     downloadBtn.addEventListener('click', async () => {
       const selectedIdx = channelSelect.value;
       let channel = parsedChannels[selectedIdx] || { url: m3uUrlInput.value.trim() };
@@ -367,71 +386,145 @@
       const endSec = Math.floor(endMs / 1000);
       const catchupUrl = buildCatchupUrl(channel.url, catchupTemplateInput.value.trim(), startSec, endSec);
 
+      abortController = new AbortController();
+      const signal = abortController.signal;
+
       progressWrapper.classList.remove('hidden');
+      stopBtn.classList.remove('hidden');
+      downloadBtn.disabled = true;
+      downloadBtn.classList.add('opacity-50', 'cursor-not-allowed');
       updateProgress(0, 'Получение манифеста архива...');
 
       try {
-        const resp = await fetch(catchupUrl);
+        const resp = await fetch(catchupUrl, { signal });
         if (!resp.ok) throw new Error(`Ошибка сервера: ${resp.status}`);
         const manifestText = await resp.text();
 
-        const baseUrl = catchupUrl.substring(0, catchupUrl.lastIndexOf('/') + 1);
-        const segmentUrls = [];
-        manifestText.split('\n').forEach(line => {
-          line = line.trim();
-          if (line && !line.startsWith('#')) {
-            segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
+        let baseUrl = catchupUrl.substring(0, catchupUrl.lastIndexOf('/') + 1);
+        let targetManifestUrl = catchupUrl;
+        let segmentUrls = [];
+
+        // Проверяем, является ли скачанный манифест мастером с мульти-качеством
+        if (manifestText.includes('#EXT-X-STREAM-INF')) {
+          log('Анализ вариантов качества выбранного архива...', 'info');
+          const lines = manifestText.split('\n');
+          let variants = [];
+          let curVar = null;
+
+          for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (line.startsWith('#EXT-X-STREAM-INF')) {
+              const resMatch = line.match(/RESOLUTION=(\d+x\d+)/i);
+              const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
+              curVar = {
+                resolution: resMatch ? resMatch[1] : 'Неизвестно',
+                bandwidth: bwMatch ? parseInt(bwMatch[1]) : 0
+              };
+            } else if (line && !line.startsWith('#') && curVar) {
+              curVar.url = line.startsWith('http') ? line : baseUrl + line;
+              variants.push(curVar);
+              curVar = null;
+            }
           }
-        });
+
+          if (variants.length > 0) {
+            let chosenVariant = variants[0];
+            if (qualVal !== 'auto' && currentStreamVariants[qualVal]) {
+              // Ищем вариант с таким же разрешением среди вариантов архива
+              const targetRes = currentStreamVariants[qualVal].resolution;
+              const matched = variants.find(v => v.resolution === targetRes);
+              if (matched) chosenVariant = matched;
+            } else {
+              // По умолчанию берем максимальное качество из доступных в архиве
+              variants.sort((a, b) => b.bandwidth - a.bandwidth);
+              chosenVariant = variants[0];
+            }
+
+            log(`Загрузка плейлиста для разрешения ${chosenVariant.resolution}...`, 'info');
+            const subResp = await fetch(chosenVariant.url, { signal });
+            if (!subResp.ok) throw new Error(`Ошибка под-плейлиста: ${subResp.status}`);
+            const subText = await subResp.text();
+            
+            baseUrl = chosenVariant.url.substring(0, chosenVariant.url.lastIndexOf('/') + 1);
+            subText.split('\n').forEach(line => {
+              line = line.trim();
+              if (line && !line.startsWith('#')) {
+                segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
+              }
+            });
+          }
+        }
+
+        // Если это обычный плейлист сегментов
+        if (segmentUrls.length === 0) {
+          manifestText.split('\n').forEach(line => {
+            line = line.trim();
+            if (line && !line.startsWith('#')) {
+              segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
+            }
+          });
+        }
 
         if (segmentUrls.length === 0) throw new Error('TS-сегменты не найдены');
-        log(`Найдено сегментов: ${segmentUrls.length}. Запуск (4 потока с пропуском ошибок)...`, 'info');
+        log(`Найдено сегментов: ${segmentUrls.length}. Запуск скачивания в MP4 (4 потока)...`, 'info');
 
         const tsBuffers = new Array(segmentUrls.length);
         let completed = 0;
-        const concurrency = 4; // 4 потока
+        const concurrency = 4;
 
         for (let i = 0; i < segmentUrls.length; i += concurrency) {
+          if (signal.aborted) break;
+
           const chunk = segmentUrls.slice(i, i + concurrency);
           
           const promises = chunk.map(async (u, idx) => {
+            if (signal.aborted) return;
             const realIndex = i + idx;
             try {
-              const r = await fetch(u);
+              const r = await fetch(u, { signal });
               if (!r.ok) throw new Error(`HTTP ${r.status}`);
               tsBuffers[realIndex] = await r.arrayBuffer();
             } catch (err) {
-              // Если кусок не скачался — логируем предупреждение и пропускаем (оставляем пустым)
+              if (signal.aborted) return;
               log(`⚠️ Пропущен поврежденный сегмент #${realIndex + 1}`, 'warn');
               tsBuffers[realIndex] = new ArrayBuffer(0); 
             }
           });
 
           await Promise.all(promises);
-          completed += chunk.length;
+          if (signal.aborted) break;
 
+          completed += chunk.length;
           const percent = Math.round((Math.min(completed, segmentUrls.length) / segmentUrls.length) * 100);
           updateProgress(percent, `Скачивание (${Math.min(completed, segmentUrls.length)}/${segmentUrls.length})...`);
         }
 
-        updateProgress(99, 'Сборка файла...');
+        if (signal.aborted) return;
+
+        updateProgress(99, 'Сохранение в MP4...');
         
-        // Фильтруем пустые буферы перед созданием файла
         const validBuffers = tsBuffers.filter(b => b && b.byteLength > 0);
-        const blob = new Blob(validBuffers, { type: 'video/mp2t' });
+        const blob = new Blob(validBuffers, { type: 'video/mp4' });
         
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `Archive_${(channel.name || 'stream').replace(/[^a-z0-9а-яё]/gi, '_')}_${startSec}.ts`;
+        const channelName = (channel.name || 'stream').replace(/[^a-z0-9а-яё]/gi, '_');
+        a.download = `Archive_${channelName}_${startSec}.mp4`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
 
-        updateProgress(100, 'Готово! Файл сохранен.');
-        log('Отрывок успешно скачан (пропущенные ошибки не прервали загрузку)!', 'success');
+        updateProgress(100, 'Готово! MP4 файл сохранен.');
+        log('Отрывок успешно скачан в формате .mp4!', 'success');
       } catch (err) {
-        log(`Ошибка при скачивании: ${err.message}`, 'error');
-        updateProgress(0, 'Ошибка');
+        if (err.name !== 'AbortError') {
+          log(`Ошибка при скачивании: ${err.message}`, 'error');
+          updateProgress(0, 'Ошибка');
+        }
+      } finally {
+        stopBtn.classList.add('hidden');
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
       }
     });
 
